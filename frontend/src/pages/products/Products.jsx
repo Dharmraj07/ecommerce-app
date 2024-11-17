@@ -1,55 +1,51 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { fetchAllProducts } from "../../store/product-slice/productSlice";
-import {
-  Container,
-  Row,
-  Col,
-  Card,
-  Button,
-  Spinner,
-  Toast,
-} from "react-bootstrap";
+import { Container, Row, Col, Card, Button, Spinner } from "react-bootstrap";
 import { addToCart } from "../../store/cart-slice/cartSlice";
+import ToastNotification from "../../shared/ToastNotification";
 import ReactDOM from "react-dom";
 
 const Products = () => {
-  // Get the necessary data from Redux store
   const dispatch = useDispatch();
-  const { productList, isLoading, error } = useSelector(
-    (state) => state.products
-  );
 
+  // Extract Redux state
+  const { productList, isLoading, error } = useSelector((state) => state.products);
   const { isAuthenticated } = useSelector((state) => state.auth);
 
-
-  // State for managing toast visibility
-  const [showToast, setShowToast] = useState(false);
-  const [toastMessage, setToastMessage] = useState("");
-  const [toastVariant, setToastVariant] = useState("success"); // success or danger
+  // Toast state
+  const [toastData, setToastData] = useState({ message: "", variant: "", show: false });
 
   // Fetch products when the component mounts
   useEffect(() => {
     dispatch(fetchAllProducts());
-  }, []);
+  }, [dispatch]);
 
-  // Add to cart function
-  const addToCartHandle = (productId) => {
-    dispatch(addToCart(productId))
-      .unwrap()
-      .then(() => {
-        setToastMessage("Product added to cart successfully!");
-        setToastVariant("success");
-        setShowToast(true);
-      })
-      .catch(() => {
-        setToastMessage("Product is already in the cart");
-        setToastVariant("danger");
-        setShowToast(true);
+  // Add to cart handler
+  const addToCartHandle = async (productId) => {
+    try {
+      await dispatch(addToCart(productId)).unwrap();
+      setToastData({
+        message: "Product added to cart successfully!",
+        variant: "success",
+        show: true,
       });
+    } catch {
+      setToastData({
+        message: "Product is already in the cart.",
+        variant: "danger",
+        show: true,
+      });
+    }
   };
 
-  // Show loading spinner while fetching
+  // Close toast handler
+  const closeToast = () => setToastData({ ...toastData, show: false });
+
+  // Memoize product list
+  const memoizedProducts = useMemo(() => productList, [productList]);
+
+  // Loading state
   if (isLoading) {
     return (
       <Container className="text-center mt-5">
@@ -59,56 +55,50 @@ const Products = () => {
     );
   }
 
-  // Handle error state
+  // Error state
   if (error) {
     return (
       <Container className="text-center mt-5">
-        <p>Error fetching products: {error}</p>
+        <p className="text-danger">Error fetching products: {error}</p>
       </Container>
     );
   }
 
-  // Render product list
+  // Render products
   return ReactDOM.createPortal(
     <Container>
       <h2 className="my-4">Our Products</h2>
 
       {/* Toast Notification */}
-      <Toast
-        show={showToast}
-        onClose={() => setShowToast(false)}
-        bg={toastVariant} // success or danger
-        className="position-fixed bottom-0 end-0 m-3"
-      >
-        <Toast.Body>{toastMessage}</Toast.Body>
-      </Toast>
+      <ToastNotification
+        show={toastData.show}
+        message={toastData.message}
+        variant={toastData.variant}
+        onClose={closeToast}
+      />
 
       <Row>
-        {productList.map((product) => (
-          <Col
-            sm={12}
-            md={4}
-            lg={3}
-            key={product.productId} // Use unique product identifier
-            className="mb-4"
-          >
-            <Card style={{ fontSize: "0.9rem" }}>
+        {memoizedProducts.map((product) => (
+          <Col sm={12} md={4} lg={3} key={product.productId} className="mb-4">
+            <Card>
               <Card.Img
                 variant="top"
                 src={product.imageUrl}
+                className="img-fluid"
                 style={{ height: "150px", objectFit: "cover" }}
               />
               <Card.Body>
                 <Card.Title>{product.title}</Card.Title>
-                <Card.Text>${product.price}</Card.Text>
-                {isAuthenticated &&
-                <Button
-                  variant="primary"
-                  size="sm"
-                  onClick={() => addToCartHandle(product.productId)}
-                >
-                  Add to Cart
-                </Button> }
+                <Card.Text>${product.price.toFixed(2)}</Card.Text>
+                {isAuthenticated && (
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={() => addToCartHandle(product.productId)}
+                  >
+                    Add to Cart
+                  </Button>
+                )}
               </Card.Body>
             </Card>
           </Col>

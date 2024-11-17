@@ -1,11 +1,13 @@
-import React, { useState } from "react";
+import React, { useState, lazy, Suspense } from "react";
 import { Route, Routes } from "react-router-dom";
-import Register from "./pages/auth/register";
-import Home from "./pages/home/Home";
 import NavigationBar from "./components/Navbar";
-import Login from "./pages/auth/login";
-import Products from "./pages/products/Products";
 import Cart from "./components/Cart";
+
+// Lazy load the pages
+const Home = lazy(() => import("./pages/home/Home"));
+const Register = lazy(() => import("./pages/auth/register"));
+const Login = lazy(() => import("./pages/auth/login"));
+const Products = lazy(() => import("./pages/products/Products"));
 
 const App = () => {
   const [showCart, setShowCart] = useState(false);
@@ -16,12 +18,14 @@ const App = () => {
   return (
     <>
       <NavigationBar toggleForm={toggleCart} />
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/register" element={<Register />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/products" element={<Products />} />
-      </Routes>
+      <Suspense fallback={<div>Loading...</div>}>
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/products" element={<Products />} />
+        </Routes>
+      </Suspense>
       <Cart show={showCart} handleClose={closeCart} />
     </>
   );
